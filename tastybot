@@ -77,4 +77,4 @@ async def start(ctx):
 
 
 
-bot.run('MTMxMjY4MTYzMTc5ODAwNTc4MQ.GWwgZh.KGMTb-FRsctirG9-ObLlWjgr28AThX9EL8jUw8') 
+bot.run('токен') 
