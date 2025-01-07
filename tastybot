@@ -1,0 +1,80 @@
+import discord
+from discord.ext  import commands
+import sqlite3
+
+# Створення підключення до бази даних
+conn = sqlite3.connect('menu.db')
+cursor = conn.cursor()
+
+# Створення таблиці для страв
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS dishes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE,
+    category TEXT,
+    ingredients TEXT,
+    price REAL
+)
+''')
+
+# Заповнення деяких прикладів страв
+cursor.execute("INSERT OR IGNORE INTO dishes (name, category, ingredients, price) VALUES (?, ?, ?, ?)", 
+               ('Бургер', 'Основні страви', 'м\'ясо, булочка, салат, соус', 5.99))
+cursor.execute("INSERT OR IGNORE INTO dishes (name, category, ingredients, price) VALUES (?, ?, ?, ?)", 
+               ('Піца', 'Основні страви', 'тісто, сир, томатний соус, ковбаса', 8.99))
+
+conn.commit()
+
+# Налаштування бота
+bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
+
+@bot.event
+async def on_ready():
+    print(f'Бот tastybot підключився!')  # Цей рядок допоможе перевірити, чи бот підключений
+
+@bot.command()
+async def start(ctx):
+    """Команда для початку опитування"""
+    print("Команда start активована!")  # Додано для перевірки активації команди
+    await ctx.send('Привіт! Я твій чат-бот для замовлення їжі. Розпочнемо опитування!')
+    await ctx.send('Які страви тебе цікавлять? (Основні, закуски, десерти)')
+
+    def check(message):
+        return message.author == ctx.author and message.content.lower() in ['основні', 'закуски', 'десерти']
+
+    msg = await bot.wait_for('message', check=check)
+    category = msg.content.lower()
+
+    # Отримуємо страви з бази даних відповідно до категорії
+    cursor.execute("SELECT * FROM dishes WHERE category LIKE ?", (f"%{category.capitalize()}%",))
+    dishes = cursor.fetchall()
+
+    if dishes:
+        await ctx.send(f"Ось список {category} страв, які я знайшов:")
+        for dish in dishes:
+            await ctx.send(f"{dish[1]} - {dish[3]} грн.")
+    else:
+        await ctx.send(f"На жаль, я не знайшов страв у категорії {category}.")
+
+    # Тепер запитуємо про вибір страви
+    await ctx.send('Вибери страву, введи її назву.')
+
+    def check_dish(message):
+        return message.author == ctx.author
+
+    msg = await bot.wait_for('message', check=check_dish)
+    dish_name = msg.content.lower()
+
+    # Шукаємо вибрану страву
+    cursor.execute("SELECT * FROM dishes WHERE name LIKE ?", (f"%{dish_name.capitalize()}%",))
+    selected_dish = cursor.fetchone()
+
+    if selected_dish:
+        await ctx.send(f"Ви вибрали {selected_dish[1]}. Ціна: {selected_dish[4]} грн.")
+        await ctx.send("Ваше замовлення оформлено!")
+    else:
+        await ctx.send(f"Я не зміг знайти страву з назвою {dish_name}. Спробуйте ще раз.")
+
+
+
+bot.run('MTMxMjY4MTYzMTc5ODAwNTc4MQ.GWwgZh.KGMTb-FRsctirG9-ObLlWjgr28AThX9EL8jUw8') 
